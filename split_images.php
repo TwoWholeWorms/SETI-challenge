@@ -2,20 +2,26 @@
 
 // Yes, it's in PHP. Bite me. :)
 
-$frameWidth = 359;
 $fileSize = 1902341;
-$imageLength = $fileSize / $frameWidth;
+$totalImages = 7;
+$frameWidth = 359;
+$frameLength = ($fileSize / $totalImages) / $frameWidth;
+$frameSize = $frameLength * $frameWidth;
 
 $fd = fopen('SETI_message.txt', 'r');
-$img = imagecreatetruecolor($frameWidth, $imageLength);
+
+// Read in each line of data and write out each bit to the target image if it's a 1
+$y = 0;
+$frameNum = 0;
+$currentFrame = '';
+
+$img = imagecreatetruecolor($frameWidth, $frameLength);
 
 $fgColour = imagecolorallocate($img, 255, 255, 255);
 $bgColour = imagecolorallocate($img, 0, 0, 0);
 
 imagefill($img, 0, 0, $bgColour);
 
-// Read in each line of data and write out each bit to the target image if it's a 1
-$y = 0;
 while ($data = fread($fd, $frameWidth)) {
     $bits = str_split($data);
     foreach ($bits as $x => $bit) {
@@ -24,6 +30,22 @@ while ($data = fread($fd, $frameWidth)) {
         }
     }
     $y++;
+    $currentFrame .= $data;
+    if (strlen($currentFrame) === $frameSize) {
+        imagepng($img, 'output/image' . $frameNum . '.png');
+        file_put_contents('output/frame' . $frameNum . '.txt', $currentFrame);
+        file_put_contents('output/frame' . $frameNum . '-lines.txt', implode("\n", str_split($currentFrame, $frameWidth)));
+        $frameNum++;
+        if ($frameNum < 7) {
+            $img = imagecreatetruecolor($frameWidth, $frameLength);
+            $fgColour = imagecolorallocate($img, 255, 255, 255);
+            $bgColour = imagecolorallocate($img, 0, 0, 0);
+
+            imagefill($img, 0, 0, $bgColour);
+        }
+        $currentFrame = '';
+        $y = 0;
+    }
 }
 
-imagepng($img, 'image.png');
+fclose($fd);
